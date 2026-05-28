@@ -2,7 +2,7 @@ class ClipboardLite < Formula
   desc "Lightweight Clipboard History Manager with CLI and GUI"
   homepage "https://github.com/codemaster-ar/homebrew-clipboard-lite"
   url "https://github.com/Codemaster-AR/homebrew-clipboard-lite/archive/refs/tags/v2.0.0.tar.gz"
-  sha256 "17ddb8f6a27d05434f882c176a5c07321f81bf02f96d9dc1e2d2df33759b86dc"
+  sha256 "31a237a19375622828dff2732e747471d8a313313f6e2cb933b440bc259e1113"
   version "2.0.0"
   license "ISC"
 
