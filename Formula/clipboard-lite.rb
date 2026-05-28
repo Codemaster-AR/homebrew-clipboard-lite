@@ -10,44 +10,39 @@ class ClipboardLite < Formula
   depends_on "python@3.11"
 
   def install
-    # 1. Install Node dependencies
-    # We use --production to skip devDependencies
-    system "npm", "install", "--production"
+    # Run npm install BEFORE moving files — package.json must exist in tarball root
+    # Uses Homebrew's own node to avoid system version mismatches
+    system "#{Formula["node"].opt_bin}/npm", "install", "--omit=dev"
 
-    # 2. Setup the application in libexec (private storage)
-    # This keeps the binary directory clean
+    # Move everything (including node_modules) into libexec
     libexec.install Dir["*"]
 
-    # 3. Create a wrapper script to run the Python CLI
-    # This ensures it uses the correct Python and environment
+    # Cross-platform wrapper: ensures both node and python resolve to
+    # Homebrew-managed versions, and that Python subprocesses inherit PATH
+    # so the GUI (node) can be launched by script.py on any OS
     (bin/"clipboard-lite").write <<~EOS
-      #!/bin/bash
-      # Add homebrew node/python to PATH just in case
-      export PATH="#{HOMEBREW_PREFIX}/bin:$PATH"
-      
-      # Run the python script from the installed libexec directory
-      # We assume dependencies like 'pyperclip' are available in the system python 
-      # or should be installed via 'pip' by the user.
-      exec python3 "#{libexec}/script.py" "$@"
+      #!/usr/bin/env bash
+      export PATH="#{Formula["node"].opt_bin}:#{Formula["python@3.11"].opt_bin}:$PATH"
+      export CLIPBOARD_LITE_DIR="#{libexec}"
+      exec "#{Formula["python@3.11"].opt_bin}/python3" "#{libexec}/script.py" "$@"
     EOS
-    
+
     chmod 0755, bin/"clipboard-lite"
   end
 
   def caveats
     <<~EOS
-      To use the CLI, simply run:
+      To use the CLI, run:
         clipboard-lite
 
-      To launch the GUI, select Option 2 from the CLI menu.
-      
-      Note: Ensure you have installed the required Python packages:
+      The GUI option is available from the CLI menu (Option 2).
+
+      If you see Python import errors, install the required packages:
         pip3 install pyperclip rich pyfiglet
     EOS
   end
 
   test do
-    # Basic test to ensure the binary is created and executable
-    system "#{bin}/clipboard-lite", "--help"
+    system bin/"clipboard-lite", "--help"
   end
 end
