@@ -7,7 +7,7 @@ class ClipboardLite < Formula
   license "ISC"
 
   depends_on "node"
-  depends_on "python@3.11"
+  depends_on "python@3.14"
 
   def install
     cd "src/v2.0.0" do
@@ -17,9 +17,9 @@ class ClipboardLite < Formula
 
     (bin/"clipboard-lite").write <<~EOS
       #!/usr/bin/env bash
-      export PATH="#{Formula["node"].opt_bin}:#{Formula["python@3.11"].opt_bin}:$PATH"
+      export PATH="#{Formula["node"].opt_bin}:#{Formula["python@3.14"].opt_bin}:$PATH"
       export CLIPBOARD_LITE_DIR="#{libexec}"
-      exec "#{Formula["python@3.11"].opt_bin}/python3" "#{libexec}/script.py" "$@"
+      exec "#{Formula["python@3.14"].opt_bin}/python3" "#{libexec}/script.py" "$@"
     EOS
 
     chmod 0755, bin/"clipboard-lite"
