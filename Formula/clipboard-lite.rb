@@ -15,11 +15,16 @@ class ClipboardLite < Formula
       libexec.install Dir["*"]
     end
 
+    # Create a virtualenv and install Python dependencies automatically
+    venv = libexec/"venv"
+    system "#{Formula["python@3.14"].opt_bin}/python3", "-m", "venv", venv
+    system "#{venv}/bin/pip", "install", "pyperclip", "rich", "pyfiglet"
+
     (bin/"clipboard-lite").write <<~EOS
       #!/usr/bin/env bash
       export PATH="#{Formula["node"].opt_bin}:#{Formula["python@3.14"].opt_bin}:$PATH"
       export CLIPBOARD_LITE_DIR="#{libexec}"
-      exec "#{Formula["python@3.14"].opt_bin}/python3" "#{libexec}/script.py" "$@"
+      exec "#{libexec}/venv/bin/python3" "#{libexec}/script.py" "$@"
     EOS
 
     chmod 0755, bin/"clipboard-lite"
@@ -31,9 +36,6 @@ class ClipboardLite < Formula
         clipboard-lite
 
       The GUI option is available from the CLI menu (Option 2).
-
-      If you see Python import errors, install the required packages:
-        pip3 install pyperclip rich pyfiglet
     EOS
   end
 
