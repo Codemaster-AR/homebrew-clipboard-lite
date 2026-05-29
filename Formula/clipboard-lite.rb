@@ -10,17 +10,11 @@ class ClipboardLite < Formula
   depends_on "python@3.11"
 
   def install
-    cd "homebrew-clipboard-lite-2.0.0" do
-      # Install Node dependencies
+    cd "src/v2.0.0" do
       system "#{Formula["node"].opt_bin}/npm", "install", "--omit=dev"
-
-      # Copy all files (including node_modules) to libexec
       libexec.install Dir["*"]
     end
 
-    # Cross-platform wrapper script
-    # Ensures both node and python resolve to Homebrew-managed versions
-    # Node is in PATH so script.py can spawn the Electron GUI on any OS
     (bin/"clipboard-lite").write <<~EOS
       #!/usr/bin/env bash
       export PATH="#{Formula["node"].opt_bin}:#{Formula["python@3.11"].opt_bin}:$PATH"
