@@ -6,50 +6,40 @@ import shutil
 import pyfiglet
 from datetime import datetime
 import time
-import urllib.request  # Used to check for updates without extra dependencies
+import urllib.request
+import ssl
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.markup import escape
 
 # Configuration
-HISTORY_FILE = "clipboard_history.json"
-CURRENT_VERSION = "v2.0.0"  # Update this string whenever you release a new version
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))  # always points to libexec
+HISTORY_FILE = os.path.join(SCRIPT_DIR, "clipboard_history.json")  # fixed: was relative
+CURRENT_VERSION = "v2.0.0"
 REPO_URL = "https://api.github.com/repos/Codemaster-AR/clipboard-text-lightweight/releases/latest"
 console = Console()
 
 # --- Update Checker ---
-import ssl # Add this to the top of your imports
-# ... rest of your imports ...
-
-# --- Update Checker ---
 def check_for_updates():
-    """Fetches the latest release from GitHub with SSL bypass for venv compatibility."""
-    # This context bypasses the certificate verification that often fails in venvs
     context = ssl._create_unverified_context()
-    # Get it here: https://github.com/Codemaster-AR/clipboard-text-lightweight/releases
     try:
         req = urllib.request.Request(
-            REPO_URL, 
+            REPO_URL,
             headers={'User-Agent': 'Mozilla/5.0 (Clipboard-Lite-Update-Checker)'}
         )
-        # We pass the context here to bypass SSL errors
         with urllib.request.urlopen(req, context=context, timeout=5) as response:
             if response.status == 200:
                 data = json.loads(response.read().decode())
                 latest_version = data.get("tag_name", "").strip()
-                
                 if latest_version and latest_version != CURRENT_VERSION:
                     return f"[bold yellow]Update Available![/bold yellow] (Current: {CURRENT_VERSION} -> Latest: [bold green]{latest_version}[/bold green])\nRun 'brew upgrade clipboard-lightweight' to update!"
                 else:
                     return f"[green]System up to date[/green] ({CURRENT_VERSION})"
-                    
     except urllib.error.URLError as e:
-        # This will now print the actual error (e.g., [Errno 11001] getaddrinfo failed)
         return f"[dim red]Connection failed: {e.reason}[/dim red]"
     except Exception as e:
         return f"[dim red]Update check error: {str(e)}[/dim red]"
-    
     return f"[dim]Version: {CURRENT_VERSION}[/dim]"
 
 # --- Shared UI Helpers ---
@@ -65,13 +55,11 @@ def load_history():
                 data = json.load(f)
                 if not isinstance(data, list):
                     return []
-                # Ensure every item is a dict with necessary fields
                 history = []
                 for item in data:
                     if isinstance(item, str):
                         history.append({"text": item, "timestamp": datetime.now().isoformat()})
                     elif isinstance(item, dict):
-                        # Ensure we have a text field and it is a string
                         txt = item.get('text') or item.get('content') or ""
                         ts = item.get('timestamp') or datetime.now().isoformat()
                         history.append({"text": str(txt), "timestamp": str(ts)})
@@ -94,11 +82,8 @@ def add_to_history(text):
         return
     text = str(text)
     history = load_history()
-    if history:
-        # Check against first item
-        if history[0].get('text') == text:
-            return
-    # Use ISO format to match Electron
+    if history and history[0].get('text') == text:
+        return
     entry = {"timestamp": datetime.now().isoformat(), "text": text}
     history.insert(0, entry)
     save_history(history[:50])
@@ -107,12 +92,10 @@ def format_cli_timestamp(timestamp_str):
     if not timestamp_str or not isinstance(timestamp_str, str) or timestamp_str == "Unknown":
         return "Unknown"
     try:
-        # Handle ISO format
         if 'T' in timestamp_str:
             ts = timestamp_str.replace('Z', '').split('.')[0]
             dt = datetime.fromisoformat(ts)
         else:
-            # Handle legacy format
             dt = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
         return dt.strftime("%b %d, %H:%M:%S")
     except Exception:
@@ -123,28 +106,21 @@ def show_history():
     if not history:
         console.print("[yellow]History is empty.[/yellow]")
         return
-    
     console.print("\n[bold blue]Note:[/bold blue] This table shows your [italic]past[/italic] clipboard contents.")
     console.print("[dim]If you see 'TypeError' or 'Traceback' below, they are records of previous crashes that you copied.[/dim]\n")
-    
     table = Table(title="Clipboard History", show_header=True, header_style="bold magenta")
     table.add_column("ID", style="dim", width=4)
     table.add_column("Date/Time", style="cyan")
     table.add_column("Content", style="green")
-    
     for idx, item in enumerate(history):
         if not isinstance(item, dict):
             continue
-            
         text = str(item.get('text', ""))
         timestamp = str(item.get('timestamp', "Unknown"))
         formatted_time = str(format_cli_timestamp(timestamp))
-        
         clean_text = text.replace('\n', ' ').replace('\r', '').strip()
         content_display = clean_text[:50] + ("..." if len(clean_text) > 50 else "")
-        
         table.add_row(str(idx), formatted_time, escape(content_display))
-    
     console.print(table)
 
 def run_text_version():
@@ -153,14 +129,13 @@ def run_text_version():
         console.print(get_header())
         console.print(Panel("[bold white]1.[/bold white] Check Current\n[bold white]2.[/bold white] View History\n[bold white]3.[/bold white] Re-copy Item\n[bold white]4.[/bold white] Delete Item\n[bold white]5.[/bold white] Clear All\n[bold white]6.[/bold white] Back to Launcher", title="Menu", expand=False))
         choice = str(console.input("[bold yellow]Select an option:[/bold yellow] ")).strip()
-
         if choice == '1':
             current = str(pyperclip.paste())
             console.print("Current clipboard content:", style="bold white")
             console.print("-" * 20)
             console.print(escape(current))
             console.print("-" * 20)
-            if console.input("\nSave this to history? (y/n): ").lower() == 'y': 
+            if console.input("\nSave this to history? (y/n): ").lower() == 'y':
                 add_to_history(current)
                 console.print("[green]Saved to history![/green]")
                 time.sleep(1)
@@ -216,46 +191,47 @@ def run_gui_version():
         console.print("[red]Error: 'node' (Node.js) is not installed.[/red]")
         return
 
-    if not os.path.exists("node_modules"):
+    # Fixed: use SCRIPT_DIR so paths resolve to libexec, not user's home
+    node_modules = os.path.join(SCRIPT_DIR, "node_modules")
+    if not os.path.exists(node_modules):
         console.print("[yellow]Installing dependencies...[/yellow]")
-        subprocess.run(["npm", "install"], check=True, shell=(os.name == 'nt'))
+        subprocess.run(["npm", "install"], check=True, cwd=SCRIPT_DIR, shell=(os.name == 'nt'))
 
-    electron_entry = os.path.join("node_modules", "electron", "cli.js")
-    
+    electron_entry = os.path.join(SCRIPT_DIR, "node_modules", "electron", "cli.js")
+
     console.print("[bold blue]Launching Electron (Background)...[/bold blue]")
     try:
-        subprocess.Popen(["node", electron_entry, "."], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(
+            ["node", electron_entry, "."],
+            cwd=SCRIPT_DIR,  # fixed: was missing cwd
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
         console.print("[green]GUI launched successfully! Returning to menu...[/green]")
     except Exception as e:
         console.print(f"[red]Failed to launch: {e}[/red]")
-    
+
     time.sleep(2)
 
 # --- Main Entry Point ---
 def main():
-    # Perform initial update check
     console.clear()
     console.print(get_header())
     console.print("[dim cyan]Checking for updates...[/dim cyan]")
     update_status = check_for_updates()
-
     while True:
         console.clear()
         console.print(get_header())
-        
-        # Display the update information directly above the menu options
         console.print(update_status)
         console.print()
-        
         console.print(Panel("Choose interface:", title="Launcher", expand=False))
         console.print("[1] Text-Based CLI\n[2] Electron GUI\n[3] Exit")
         choice = console.input("\n[bold yellow]Selection: [/bold yellow]")
-        
-        if choice == '1': 
+        if choice == '1':
             run_text_version()
-        elif choice == '2': 
+        elif choice == '2':
             run_gui_version()
-        elif choice == '3': 
+        elif choice == '3':
             break
 
 if __name__ == "__main__":
